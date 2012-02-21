@@ -1,3 +1,4 @@
+import copy
 from dateutil.relativedelta import relativedelta
 from django.utils.translation import ugettext_lazy as _
 from django.db import models
@@ -74,7 +75,7 @@ class Event(models.Model):
 
     objects = EventManager()
 
-    def set_recurrent(self, periodicity):
+    def set_recurring(self, periodicity):
         self.is_recurring = True
         self._periodicity = periodicity
         self.save()
@@ -89,8 +90,17 @@ class Event(models.Model):
         else:
             self._parent.add_child(event)
 
+    @classmethod
+    def duplicate(cls, event, next_date):
+        new_event = copy.copy(event)
+        new_event.id = None
+        new_event._parent = event
+        new_event.date = next_date
+        new_event.save()
+        return new_event
+
     def create_child_event(self, next_date):
-        event = Event.objects.create(date=next_date, is_recurring=True, _periodicity=self._periodicity, _parent=self)
+        event = self.duplicate(self, next_date)
         self.add_child(event)
         return event
 
@@ -164,5 +174,9 @@ class Event(models.Model):
                 else:
                     return None
 
+    class Meta:
+        abstract = True
+
+class BaseEvent(Event):pass
 
 
