@@ -84,9 +84,16 @@ class TestEvent(TestCase):
         second_child = self.event.create_child_event(date(2013, 3, 3))
         self.event.delete()
 
+        assert_that(BaseEvent.objects.count(), is_(2))
+
         first_child = BaseEvent.objects.get(id=first_child.id)
         assert_that(first_child._parent, is_(none()))
+        assert_that(first_child._children.count(), is_(1))
+
 
         second_child = BaseEvent.objects.get(id=second_child.id)
         assert_that(second_child._parent, is_(first_child))
+
+        first_child.delete(all=True)
+        assert_that(BaseEvent.objects.count(), is_(0))
 

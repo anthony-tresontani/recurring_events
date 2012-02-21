@@ -75,6 +75,8 @@ class Event(models.Model):
 
     objects = EventManager()
 
+    shared_attributes = []
+
     def set_recurring(self, periodicity):
         self.is_recurring = True
         self._periodicity = periodicity
@@ -117,12 +119,24 @@ class Event(models.Model):
             return self._next()
         return None
 
-    def delete(self, using=None):
+    def save(self, force_insert=False, force_update=False, using=None, update_series=False):
+        if update_series:
+            root = self._parent or self
+            for child in root._children._filter(date__gte=self.date):
+                for attribute in self.shared_attributes:
+                    setattr(child, attribute, getattr(self, attribute))
+                    child.save()
+        super(Event, self).save(force_insert, force_update, using)
+
+
+    def delete(self, using=None, all=False):
         """
         When deleting a recurring event, if the event is the root one,
         the first child become the root
         """
         children = self._children.all().order_by("date")
+        if all:
+            children.delete()
         if len(children):
             first_children = children[0]
             first_children._parent = None
@@ -130,6 +144,7 @@ class Event(models.Model):
             for child in children[1:]:
                 child._parent = first_children
                 child.save()
+                first_children.add_child(child)
         super(Event, self).delete(using)
 
     @classmethod

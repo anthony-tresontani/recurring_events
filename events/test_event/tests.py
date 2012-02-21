@@ -14,10 +14,21 @@ from test_event.models import CustomEvent
 
 class CustomEventTest(TestCase):
 
+    def setUp(self):
+        self.event = get(CustomEvent, title= "my title", date=date(2012, 3, 2), _parent=None)
+        self.event.set_recurring(Event.MONTH)
+
     def test_recurring_custom_event(self):
-        event = get(CustomEvent, title= "my title", date=date(2012, 03, 02))
-        event.set_recurring(Event.MONTH)
+        child_event = CustomEvent.objects.filter(date=date(2012, 4, 2))[0]
+        assert_that(child_event.title, is_(self.event.title))
 
-        child_event = CustomEvent.objects.filter(date=date(2012, 03, 02))[0]
-        assert_that(child_event.title, is_(event.title))
+    def test_title_update(self):
+        # Create the child event
+        child_event_id = CustomEvent.objects.filter(date=date(2012, 4, 2))[0].id
 
+        title = "A new title"
+        self.event.title = title
+        self.event.save(update_series=True)
+
+        child_event = CustomEvent.objects.get(id=child_event_id)
+        assert_that(child_event.title, is_(title))
